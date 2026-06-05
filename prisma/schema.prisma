@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Subscriber {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  status           SubscriberStatus @default(PENDING)
+  confirmToken     String?          @unique
+  confirmedAt      DateTime?
+  unsubscribeToken String           @unique @default(cuid())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+}
+
+enum SubscriberStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
+
+model Issue {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  date        DateTime
+  status      IssueStatus @default(DRAFT)
+  subject     String      @default("")
+  previewText String      @default("")
+  held        Boolean     @default(false)
+  sentAt      DateTime?
+  sendCount   Int         @default(0)
+  items       IssueItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum IssueStatus {
+  DRAFT
+  HELD
+  SENT
+}
+
+model IssueItem {
+  id            String  @id @default(cuid())
+  issueId       String
+  issue         Issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  section       Section
+  position      Int
+  title         String
+  summary       String
+  whyMatters    String  @default("")
+  sourceUrl     String
+  sourceName    String
+  originalTitle String
+
+  @@index([issueId])
+}
+
+enum Section {
+  BIG_ONE
+  IN_BRIEF
+  TOOLS
+  RESEARCH
+  MOVES
+}
+
+model Source {
+  id          String     @id @default(cuid())
+  name        String
+  type        SourceType
+  url         String
+  enabled     Boolean    @default(true)
+  weight      Float      @default(1.0)
+  lastFetched DateTime?
+  createdAt   DateTime   @default(now())
+}
+
+enum SourceType {
+  RSS
+  NEWS_API
+  SCRAPER
+}
+
+model SeenUrl {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  seenAt    DateTime @default(now())
+
+  @@index([seenAt])
+}

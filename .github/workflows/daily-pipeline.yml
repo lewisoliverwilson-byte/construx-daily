@@ -1,0 +1,47 @@
+name: Daily Pipeline
+
+on:
+  schedule:
+    # Compile at 06:00 UTC (07:00 BST summer / 06:00 GMT winter)
+    - cron: '0 6 * * *'
+    # Auto-send at 08:00 UTC (09:00 BST summer / 08:00 GMT winter)
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Pipeline step to run'
+        required: true
+        default: 'compile'
+        type: choice
+        options:
+          - compile
+          - send
+
+jobs:
+  compile:
+    name: Compile issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.step == 'compile' || github.event.schedule == '0 6 * * *'
+    steps:
+      - name: Trigger compile
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SITE_URL }}/api/pipeline/compile" \
+            -H "x-pipeline-secret: ${{ secrets.PIPELINE_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Response: $response"
+          if [ "$response" != "200" ]; then exit 1; fi
+
+  send:
+    name: Send issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.step == 'send' || github.event.schedule == '0 8 * * *'
+    steps:
+      - name: Trigger send
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SITE_URL }}/api/pipeline/send" \
+            -H "x-pipeline-secret: ${{ secrets.PIPELINE_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Response: $response"
+          if [ "$response" != "200" ]; then exit 1; fi
