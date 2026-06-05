@@ -8,6 +8,7 @@ export interface RawItem {
   sourceType: 'rss' | 'newsapi' | 'scraper'
   publishedAt: Date
   excerpt: string
+  imageUrl?: string
 }
 
 export function makeItemId(url: string): string {

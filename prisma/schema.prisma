@@ -59,6 +59,7 @@ model IssueItem {
   sourceUrl     String
   sourceName    String
   originalTitle String
+  imageUrl      String?
 
   @@index([issueId])
 }

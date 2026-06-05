@@ -37,6 +37,7 @@ export async function assembleIssue(
         sourceUrl: item.url,
         sourceName: item.sourceName,
         originalTitle: item.title,
+        imageUrl: item.imageUrl ?? null,
       }))
   })
 

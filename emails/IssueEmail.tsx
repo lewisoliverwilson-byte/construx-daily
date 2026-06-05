@@ -1,5 +1,5 @@
 import {
-  Body, Container, Head, Heading, Hr, Html, Link, Preview,
+  Body, Container, Head, Heading, Hr, Html, Img, Link, Preview,
   Section, Text, Row, Column, Font,
 } from '@react-email/components'
 import { IssueItem, Section as PrismaSection } from '@prisma/client'
@@ -46,8 +46,12 @@ export function IssueEmailTemplate({ subject, previewText, items, archiveUrl, un
 
           {/* Header */}
           <Section style={header}>
-            <Text style={logo}>Construx Daily</Text>
-            <Text style={tagline}>Your bite-sized AI briefing</Text>
+            <Row>
+              <Column style={{ textAlign: 'center' as const }}>
+                <Text style={logo}>● Construx Daily</Text>
+                <Text style={tagline}>Your bite-sized AI briefing</Text>
+              </Column>
+            </Row>
           </Section>
 
           <Hr style={divider} />
@@ -56,21 +60,62 @@ export function IssueEmailTemplate({ subject, previewText, items, archiveUrl, un
           {SECTION_ORDER.map(section => {
             const sectionItems = grouped[section]
             if (!sectionItems) return null
+            const isBigOne = section === 'BIG_ONE'
             return (
               <Section key={section} style={sectionWrapper}>
                 <Text style={sectionLabel}>{SECTION_LABELS[section]}</Text>
 
                 {sectionItems.map(item => (
                   <Section key={item.id} style={itemWrapper}>
-                    <Link href={item.sourceUrl} style={itemTitle}>{item.title}</Link>
-                    <Text style={itemSummary}>{item.summary}</Text>
-                    {item.whyMatters && (
-                      <Text style={whyText}>
-                        <span style={{ color: '#F59E0B', fontWeight: '600' }}>Why it matters:</span>{' '}
-                        {item.whyMatters}
-                      </Text>
+
+                    {/* Hero image for BIG_ONE */}
+                    {isBigOne && item.imageUrl && (
+                      <Img
+                        src={item.imageUrl}
+                        width="560"
+                        alt={item.title}
+                        style={heroImage}
+                      />
                     )}
-                    <Text style={attribution}>via <Link href={item.sourceUrl} style={sourceLink}>{item.sourceName}</Link></Text>
+
+                    {/* Thumbnail + text layout for non-BIG_ONE */}
+                    {!isBigOne && item.imageUrl ? (
+                      <Row>
+                        <Column style={{ width: '150px', paddingRight: '14px', verticalAlign: 'top' as const }}>
+                          <Img
+                            src={item.imageUrl}
+                            width="150"
+                            height="100"
+                            alt={item.title}
+                            style={thumbImage}
+                          />
+                        </Column>
+                        <Column style={{ verticalAlign: 'top' as const }}>
+                          <Link href={item.sourceUrl} style={itemTitle}>{item.title}</Link>
+                          <Text style={itemSummary}>{item.summary}</Text>
+                          {item.whyMatters && (
+                            <Text style={whyText}>
+                              <span style={{ color: '#d97706', fontWeight: '600' }}>Why it matters:</span>{' '}
+                              {item.whyMatters}
+                            </Text>
+                          )}
+                          <Text style={attribution}>via <Link href={item.sourceUrl} style={sourceLink}>{item.sourceName}</Link></Text>
+                        </Column>
+                      </Row>
+                    ) : (
+                      <>
+                        <Link href={item.sourceUrl} style={isBigOne ? bigTitle : itemTitle}>{item.title}</Link>
+                        <Text style={isBigOne ? bigSummary : itemSummary}>{item.summary}</Text>
+                        {item.whyMatters && (
+                          <Text style={whyText}>
+                            <span style={{ color: '#d97706', fontWeight: '600' }}>Why it matters:</span>{' '}
+                            {item.whyMatters}
+                          </Text>
+                        )}
+                        <Text style={attribution}>via <Link href={item.sourceUrl} style={sourceLink}>{item.sourceName}</Link></Text>
+                      </>
+                    )}
+
                   </Section>
                 ))}
               </Section>
@@ -82,7 +127,7 @@ export function IssueEmailTemplate({ subject, previewText, items, archiveUrl, un
           {/* Footer */}
           <Section style={footer}>
             <Row>
-              <Column>
+              <Column style={{ textAlign: 'center' as const }}>
                 <Link href={archiveUrl} style={footerLink}>View in browser</Link>
                 {' · '}
                 <Link href={unsubscribeUrl} style={footerLink}>Unsubscribe</Link>
@@ -104,21 +149,25 @@ export function IssueEmailTemplate({ subject, previewText, items, archiveUrl, un
   )
 }
 
-const body = { backgroundColor: '#0a0a0a', fontFamily: "'Space Grotesk', Arial, sans-serif" }
-const container = { maxWidth: '600px', margin: '0 auto', padding: '0 16px' }
-const header = { paddingTop: '32px', paddingBottom: '16px', textAlign: 'center' as const }
-const logo = { color: '#F59E0B', fontSize: '24px', fontWeight: '700', margin: '0', letterSpacing: '-0.5px' }
-const tagline = { color: '#6b7280', fontSize: '13px', margin: '4px 0 0' }
-const divider = { borderColor: '#1f2937', margin: '8px 0' }
-const sectionWrapper = { paddingTop: '20px' }
-const sectionLabel = { color: '#F59E0B', fontSize: '11px', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' as const, margin: '0 0 12px' }
-const itemWrapper = { paddingBottom: '20px', borderBottom: '1px solid #1f2937', marginBottom: '20px' }
-const itemTitle = { color: '#f9fafb', fontSize: '16px', fontWeight: '600', textDecoration: 'none', lineHeight: '1.4', display: 'block', marginBottom: '8px' }
-const itemSummary = { color: '#d1d5db', fontSize: '14px', lineHeight: '1.6', margin: '0 0 8px' }
-const whyText = { color: '#9ca3af', fontSize: '13px', lineHeight: '1.5', margin: '0 0 6px', fontStyle: 'italic' }
-const attribution = { color: '#6b7280', fontSize: '12px', margin: '0' }
-const sourceLink = { color: '#6b7280', textDecoration: 'underline' }
-const footer = { paddingTop: '24px', paddingBottom: '32px', textAlign: 'center' as const }
-const footerLink = { color: '#6b7280', fontSize: '12px', textDecoration: 'underline' }
-const footerText = { color: '#4b5563', fontSize: '11px', margin: '12px 0 4px', lineHeight: '1.5' }
-const footerDisclaimer = { color: '#374151', fontSize: '10px', margin: '8px 0 0', lineHeight: '1.4' }
+const body: React.CSSProperties = { backgroundColor: '#f4f4f0', fontFamily: "'Space Grotesk', Arial, sans-serif" }
+const container: React.CSSProperties = { maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }
+const header: React.CSSProperties = { paddingTop: '28px', paddingBottom: '16px', paddingLeft: '24px', paddingRight: '24px', textAlign: 'center' as const, backgroundColor: '#ffffff' }
+const logo: React.CSSProperties = { color: '#111827', fontSize: '20px', fontWeight: '700', margin: '0', letterSpacing: '-0.3px' }
+const tagline: React.CSSProperties = { color: '#9ca3af', fontSize: '12px', margin: '4px 0 0' }
+const divider: React.CSSProperties = { borderColor: '#e5e7eb', margin: '0' }
+const sectionWrapper: React.CSSProperties = { paddingTop: '20px', paddingLeft: '24px', paddingRight: '24px' }
+const sectionLabel: React.CSSProperties = { color: '#d97706', fontSize: '10px', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' as const, margin: '0 0 10px' }
+const itemWrapper: React.CSSProperties = { paddingBottom: '20px', borderBottom: '1px solid #f3f4f6', marginBottom: '20px' }
+const heroImage: React.CSSProperties = { borderRadius: '6px', marginBottom: '14px', display: 'block', width: '100%', maxWidth: '560px' }
+const thumbImage: React.CSSProperties = { borderRadius: '4px', display: 'block', objectFit: 'cover' as const }
+const bigTitle: React.CSSProperties = { color: '#111827', fontSize: '18px', fontWeight: '700', textDecoration: 'none', lineHeight: '1.35', display: 'block', marginBottom: '10px' }
+const itemTitle: React.CSSProperties = { color: '#111827', fontSize: '14px', fontWeight: '600', textDecoration: 'none', lineHeight: '1.4', display: 'block', marginBottom: '6px' }
+const bigSummary: React.CSSProperties = { color: '#374151', fontSize: '15px', lineHeight: '1.65', margin: '0 0 10px' }
+const itemSummary: React.CSSProperties = { color: '#4b5563', fontSize: '13px', lineHeight: '1.6', margin: '0 0 6px' }
+const whyText: React.CSSProperties = { color: '#6b7280', fontSize: '12px', lineHeight: '1.5', margin: '0 0 6px', fontStyle: 'italic' }
+const attribution: React.CSSProperties = { color: '#9ca3af', fontSize: '11px', margin: '0' }
+const sourceLink: React.CSSProperties = { color: '#9ca3af', textDecoration: 'underline' }
+const footer: React.CSSProperties = { paddingTop: '20px', paddingBottom: '28px', paddingLeft: '24px', paddingRight: '24px', textAlign: 'center' as const, backgroundColor: '#f9fafb' }
+const footerLink: React.CSSProperties = { color: '#9ca3af', fontSize: '12px', textDecoration: 'underline' }
+const footerText: React.CSSProperties = { color: '#9ca3af', fontSize: '11px', margin: '12px 0 4px', lineHeight: '1.5' }
+const footerDisclaimer: React.CSSProperties = { color: '#d1d5db', fontSize: '10px', margin: '8px 0 0', lineHeight: '1.4' }

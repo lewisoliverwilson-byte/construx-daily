@@ -2,33 +2,39 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
+// Realistic sample issue data used in the landing page preview
 const SAMPLE = [
   {
     label: 'THE BIG ONE',
-    title: 'OpenAI rolls out o3 to all free users',
-    body: 'OpenAI\'s flagship reasoning model is now available on the free tier — the first time frontier-grade reasoning has shipped to everyone, no subscription required.',
+    title: 'OpenAI rolls out o3 to all free users — and it\'s already changing the baseline',
+    body: 'OpenAI\'s flagship reasoning model is now available on the free tier — the first time frontier-grade reasoning has shipped to everyone without a subscription.',
     why: 'The capability baseline for what your users can access just jumped. Products built on GPT-3.5 assumptions need rethinking.',
     source: 'TechCrunch',
+    image: 'https://picsum.photos/seed/openai-o3/600/280',
     big: true,
   },
   {
     label: 'IN BRIEF',
-    title: 'Google ships Gemini 2.5 Flash with 1M context',
-    body: 'The fastest model in the Gemini family now handles 1 million tokens — roughly 750,000 words — in a single request.',
+    title: 'Google ships Gemini 2.5 Flash with 1M context window',
+    body: 'The fastest model in the Gemini family now handles 1 million tokens in a single request — roughly 750,000 words.',
     source: 'Google DeepMind',
+    image: 'https://picsum.photos/seed/google-gemini/300/160',
   },
   {
     label: 'NEW TOOLS',
-    title: 'Cursor 1.0 ships background agents',
-    body: 'The AI code editor hits 1.0 with agents that run tasks silently while you keep working.',
+    title: 'Cursor 1.0 ships with background agents',
+    body: 'The AI code editor hits 1.0 with agents that run tasks silently while you keep coding — no context switching.',
     source: 'Cursor',
+    image: 'https://picsum.photos/seed/cursor-ide/300/160',
   },
   {
     label: 'RESEARCH',
-    title: 'Meta\'s new paper: LLMs plan better with "thinking tokens"',
+    title: 'Meta: LLMs plan better with "thinking tokens"',
     body: 'Inserting dedicated scratchpad tokens at inference time improves multi-step reasoning by 18% on standard benchmarks.',
     source: 'arXiv',
+    image: 'https://picsum.photos/seed/meta-research/300/160',
   },
 ]
 
@@ -141,50 +147,100 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Sample issue preview */}
-      <section className="px-6 py-20">
-        <div className="max-w-2xl mx-auto">
+      {/* Sample issue — realistic email preview */}
+      <section className="px-4 py-20 bg-[#f4f4f0]">
+        <div className="max-w-[640px] mx-auto">
 
           <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">What you get</p>
-            <h2 className="text-2xl font-bold text-[#111827]">A real issue, every morning</h2>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">This is what lands in your inbox</p>
+            <h2 className="text-2xl font-bold text-[#111827]">Today&apos;s issue, every morning at 8am</h2>
           </div>
 
-          {/* Issue card */}
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+          {/* Email chrome wrapper */}
+          <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-200">
 
-            {/* Issue header */}
-            <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                <span className="font-bold text-sm text-[#111827]">Construx Daily</span>
+            {/* Email client chrome bar */}
+            <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 flex items-center gap-3">
+              <div className="flex gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-red-400" />
+                <span className="w-3 h-3 rounded-full bg-amber-400" />
+                <span className="w-3 h-3 rounded-full bg-green-400" />
               </div>
-              <span className="text-gray-400 text-xs">Thursday, 5 June</span>
+              <div className="flex-1 bg-white border border-gray-200 rounded px-3 py-1 text-xs text-gray-400 text-center">
+                Construx Daily — Today&apos;s AI briefing | Friday 6 June
+              </div>
             </div>
 
-            <div className="divide-y divide-gray-100">
-              {SAMPLE.map((item, i) => (
-                <div key={i} className={`px-6 py-5 ${item.big ? 'bg-amber-50/40' : ''}`}>
-                  <p className="text-amber-600 text-[10px] font-bold tracking-[0.15em] uppercase mb-2">{item.label}</p>
-                  <p className={`font-semibold text-[#111827] mb-2 leading-snug ${item.big ? 'text-base' : 'text-sm'}`}>{item.title}</p>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-2">{item.body}</p>
-                  {item.why && (
-                    <p className="text-gray-400 text-xs italic">
-                      <span className="text-amber-600 font-semibold not-italic">Why it matters:</span>{' '}{item.why}
-                    </p>
-                  )}
-                  <p className="text-gray-400 text-xs mt-2">via {item.source}</p>
+            {/* Email body */}
+            <div className="px-7 py-6 font-sans">
+
+              {/* Email header */}
+              <div className="text-center pb-5 border-b border-gray-100 mb-5">
+                <p className="text-base font-bold text-[#111827] mb-0.5">● Construx Daily</p>
+                <p className="text-xs text-gray-400">Your bite-sized AI briefing · Friday, 6 June</p>
+              </div>
+
+              {/* THE BIG ONE with hero image */}
+              <div className="mb-6 pb-6 border-b border-gray-100">
+                <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-amber-600 mb-3">The Big One</p>
+                <div className="relative w-full aspect-[600/280] rounded-lg overflow-hidden mb-4 bg-gray-100">
+                  <Image
+                    src={SAMPLE[0].image}
+                    alt={SAMPLE[0].title}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
                 </div>
-              ))}
-            </div>
+                <a className="text-[#111827] font-bold text-[17px] leading-snug block mb-2 hover:text-amber-600 transition-colors cursor-pointer">
+                  {SAMPLE[0].title}
+                </a>
+                <p className="text-gray-600 text-sm leading-relaxed mb-2">{SAMPLE[0].body}</p>
+                <p className="text-gray-400 text-xs italic mb-1">
+                  <span className="text-amber-600 font-semibold not-italic">Why it matters:</span>{' '}{SAMPLE[0].why}
+                </p>
+                <p className="text-gray-400 text-[11px]">via {SAMPLE[0].source}</p>
+              </div>
 
-            <div className="border-t border-gray-100 px-6 py-3 flex items-center justify-between bg-gray-50">
-              <span className="text-gray-400 text-xs">Read time: ~90 seconds</span>
-              <span className="text-amber-500 text-xs font-semibold">+ 4 more stories today</span>
+              {/* Remaining sections with thumbnails */}
+              <div className="space-y-5">
+                {SAMPLE.slice(1).map((item, i) => (
+                  <div key={i} className="pb-5 border-b border-gray-100 last:border-0 last:pb-0">
+                    <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-amber-600 mb-2">{item.label}</p>
+                    <div className="flex gap-3 items-start">
+                      <div className="relative flex-shrink-0 w-[110px] h-[72px] rounded overflow-hidden bg-gray-100">
+                        <Image
+                          src={item.image}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <a className="text-[#111827] font-semibold text-[13px] leading-snug block mb-1 hover:text-amber-600 transition-colors cursor-pointer">
+                          {item.title}
+                        </a>
+                        <p className="text-gray-500 text-xs leading-relaxed mb-1">{item.body}</p>
+                        <p className="text-gray-400 text-[11px]">via {item.source}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Email footer */}
+              <div className="mt-6 pt-5 border-t border-gray-100 text-center bg-gray-50 -mx-7 px-7 -mb-6 pb-6">
+                <p className="text-gray-400 text-xs">
+                  <span className="underline cursor-pointer">Unsubscribe</span>{' · '}
+                  <span className="underline cursor-pointer">View in browser</span>
+                </p>
+                <p className="text-gray-300 text-[10px] mt-1">Construx Group Ltd · London, UK</p>
+              </div>
             </div>
           </div>
 
-          {/* CTA below sample */}
+          {/* CTA below preview */}
           <div className="text-center mt-8">
             {state === 'success' ? (
               <p className="text-amber-600 font-semibold text-sm">You&apos;re subscribed. See you at 8am.</p>

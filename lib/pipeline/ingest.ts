@@ -2,10 +2,46 @@ import Parser from 'rss-parser'
 import { RawItem, makeItemId } from './sources'
 import { db } from '../db'
 
-const rssParser = new Parser({
+type RssItem = {
+  link?: string
+  title?: string
+  pubDate?: string
+  contentSnippet?: string
+  content?: string
+  summary?: string
+  enclosure?: { url?: string; type?: string }
+  mediaContent?: { $?: { url?: string } } | Array<{ $?: { url?: string } }>
+  mediaThumbnail?: { $?: { url?: string } } | Array<{ $?: { url?: string } }>
+}
+
+const rssParser = new Parser<object, RssItem>({
   timeout: 10000,
   headers: { 'User-Agent': 'ConstruxDaily/1.0 (newsletter bot; contact@construxgroup.com)' },
+  customFields: {
+    item: [
+      ['media:content', 'mediaContent', { keepArray: false }],
+      ['media:thumbnail', 'mediaThumbnail', { keepArray: false }],
+    ],
+  },
 })
+
+function extractRssImage(item: RssItem): string | undefined {
+  // enclosure (e.g. podcast/RSS image attachments)
+  if (item.enclosure?.url && item.enclosure.type?.startsWith('image/')) {
+    const u = item.enclosure.url
+    if (u.startsWith('https://')) return u
+  }
+  // media:content
+  const mc = Array.isArray(item.mediaContent) ? item.mediaContent[0] : item.mediaContent
+  const mcUrl = mc?.$?.url
+  if (mcUrl?.startsWith('https://')) return mcUrl
+  // media:thumbnail
+  const mt = Array.isArray(item.mediaThumbnail) ? item.mediaThumbnail[0] : item.mediaThumbnail
+  const mtUrl = mt?.$?.url
+  if (mtUrl?.startsWith('https://')) return mtUrl
+
+  return undefined
+}
 
 async function fetchRssFeed(name: string, url: string): Promise<RawItem[]> {
   try {
@@ -24,6 +60,7 @@ async function fetchRssFeed(name: string, url: string): Promise<RawItem[]> {
           sourceType: 'rss' as const,
           publishedAt: pubDate,
           excerpt: stripHtml(item.contentSnippet || item.content || item.summary || '').slice(0, 500),
+          imageUrl: extractRssImage(item),
         }
       })
       .filter(item => item.publishedAt >= cutoff)
@@ -63,6 +100,7 @@ async function fetchNewsApi(apiKey: string): Promise<RawItem[]> {
       description?: string
       publishedAt: string
       source: { name: string }
+      urlToImage?: string
     }
     const data = await res.json()
     return (data.articles as NewsApiArticle[] || [])
@@ -75,6 +113,7 @@ async function fetchNewsApi(apiKey: string): Promise<RawItem[]> {
         sourceType: 'newsapi' as const,
         publishedAt: new Date(a.publishedAt),
         excerpt: (a.description || '').slice(0, 500),
+        imageUrl: (a.urlToImage && a.urlToImage.startsWith('https://')) ? a.urlToImage : undefined,
       }))
   } catch (err) {
     console.error(`[ingest] NewsAPI failed: ${err}`)
