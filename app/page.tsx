@@ -53,11 +53,16 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       })
-      const data = await res.json()
-      if (!res.ok) { setErrorMsg(data.error || 'Something went wrong.'); setState('error') }
-      else setState('success')
+      let data: { ok?: boolean; error?: string } = {}
+      try { data = await res.json() } catch { /* non-JSON body (e.g. HTML 500) */ }
+      if (!res.ok) {
+        setErrorMsg(data.error || 'Something went wrong. Please try again.')
+        setState('error')
+      } else {
+        setState('success')
+      }
     } catch {
-      setErrorMsg('Network error. Please try again.')
+      setErrorMsg('Could not reach the server. Please check your connection.')
       setState('error')
     }
   }
