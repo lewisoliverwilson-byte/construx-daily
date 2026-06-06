@@ -137,24 +137,55 @@ function Stat({ value, unit, label, active }: { value: number; unit: string; lab
 
 // ─── Live Mockup ──────────────────────────────────────────────────────────────
 
+const SECTION_ORDER = ['BIG_ONE', 'IN_BRIEF', 'TOOLS', 'RESEARCH', 'MOVES']
+const SECTION_LABELS: Record<string, string> = {
+  BIG_ONE: 'The Big One', IN_BRIEF: 'In Brief', TOOLS: 'New Tools',
+  RESEARCH: 'Research', MOVES: 'Moves & Money',
+}
+
 function LiveMockup({ issues }: { issues: Issue[] }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const progressRef = useRef<HTMLDivElement>(null)
   const [activeIdx, setActiveIdx] = useState(0)
   const [fade, setFade] = useState(true)
 
-  // Auto-cycle every 6s
+  // Slow auto-scroll, pause at bottom, then fade to next issue
   useEffect(() => {
-    if (issues.length < 2) return
+    const body = bodyRef.current
+    if (!body || issues.length === 0) return
+    let cancelled = false
+    let paused = false
+    body.scrollTop = 0
+    if (progressRef.current) progressRef.current.style.width = '0%'
+
     const id = setInterval(() => {
-      setFade(false)
-      setTimeout(() => {
-        setActiveIdx(i => (i + 1) % issues.length)
-        setFade(true)
-      }, 350)
-    }, 6000)
-    return () => clearInterval(id)
-  }, [issues.length])
+      if (cancelled || paused) return
+      const maxScroll = body.scrollHeight - body.clientHeight
+      if (maxScroll <= 2) return
+      if (body.scrollTop >= maxScroll - 1) {
+        paused = true
+        if (progressRef.current) progressRef.current.style.width = '100%'
+        setTimeout(() => {
+          if (cancelled) return
+          setFade(false)
+          setTimeout(() => {
+            if (cancelled) return
+            setActiveIdx(i => (i + 1) % issues.length)
+            setFade(true)
+          }, 380)
+        }, 1800)
+      } else {
+        body.scrollTop += 0.55
+        if (progressRef.current) {
+          progressRef.current.style.width = `${(body.scrollTop / maxScroll) * 100}%`
+        }
+      }
+    }, 16)
+
+    return () => { cancelled = true; clearInterval(id) }
+  }, [activeIdx, issues.length])
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const wrap = wrapRef.current
@@ -175,9 +206,17 @@ function LiveMockup({ issues }: { issues: Issue[] }) {
   }
 
   const issue = issues[activeIdx]
-  const bigOne = issue?.items.find(i => i.section === 'BIG_ONE')
-  const inBrief = issue?.items.filter(i => i.section === 'IN_BRIEF').slice(0, 2) ?? []
-  const toolsItem = issue?.items.find(i => i.section === 'TOOLS')
+
+  // Group items by section in display order
+  const sections: { key: string; label: string; items: IssueItem[] }[] = []
+  if (issue) {
+    for (const key of SECTION_ORDER) {
+      const items = issue.items
+        .filter(i => i.section === key)
+        .sort((a, b) => a.position - b.position)
+      if (items.length > 0) sections.push({ key, label: SECTION_LABELS[key], items })
+    }
+  }
 
   const dateLabel = issue
     ? new Date(issue.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -201,11 +240,10 @@ function LiveMockup({ issues }: { issues: Issue[] }) {
           {issues.map((iss, i) => (
             <button
               key={iss.id}
-              onClick={() => { setFade(false); setTimeout(() => { setActiveIdx(i); setFade(true) }, 350) }}
+              onClick={() => { setFade(false); setTimeout(() => { setActiveIdx(i); setFade(true) }, 380) }}
               style={{
                 width: i === activeIdx ? '22px' : '7px',
-                height: '7px',
-                borderRadius: '4px',
+                height: '7px', borderRadius: '4px',
                 background: i === activeIdx ? '#F59E0B' : 'rgba(255,255,255,0.15)',
                 border: 'none', cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.34,1.2,0.64,1)',
@@ -220,9 +258,7 @@ function LiveMockup({ issues }: { issues: Issue[] }) {
       <div className="mockup-float" style={{ position: 'relative', zIndex: 1 }}>
         <div ref={cardRef} style={{
           width: '380px', maxWidth: '100%',
-          background: '#ffffff',
-          borderRadius: '14px',
-          overflow: 'hidden',
+          background: '#ffffff', borderRadius: '14px', overflow: 'hidden',
           boxShadow: '0 60px 100px -30px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,158,11,0.25), 0 0 60px -20px rgba(245,158,11,0.15)',
           transform: 'perspective(1100px) rotateX(6deg) rotateY(-8deg) scale(1)',
           transformOrigin: 'center center',
@@ -241,117 +277,102 @@ function LiveMockup({ issues }: { issues: Issue[] }) {
           </div>
 
           {/* Email sender row */}
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', background: '#fafaf9', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '34px', height: '34px', background: '#F59E0B', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#000', flexShrink: 0 }}>CD</div>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid #f3f4f6', background: '#fafaf9', display: 'flex', alignItems: 'center', gap: '9px' }}>
+            <div style={{ width: '30px', height: '30px', background: '#F59E0B', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 800, color: '#000', flexShrink: 0 }}>CD</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#111' }}>Construx Daily</div>
-              <div style={{ fontSize: '10px', color: '#9ca3af' }}>daily@construxdaily.com</div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#111' }}>Construx Daily</div>
+              <div style={{ fontSize: '9px', color: '#9ca3af' }}>daily@construxdaily.com</div>
             </div>
-            <div style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 600 }}>8:00 AM</div>
+            <div style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>8:00 AM</div>
           </div>
 
-          {/* Email body — fades when cycling */}
-          <div style={{
-            padding: '14px 16px', fontFamily: "'Space Grotesk', Arial, sans-serif",
-            position: 'relative', maxHeight: '520px', overflow: 'hidden',
-            opacity: fade ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-          }}>
+          {/* Scrollable email body — clipped, no visible scrollbar */}
+          <div style={{ height: '460px', overflow: 'hidden', position: 'relative' }}>
+            <div
+              ref={bodyRef}
+              className="no-scrollbar"
+              style={{
+                height: '100%', overflowY: 'scroll', scrollbarWidth: 'none',
+                opacity: fade ? 1 : 0,
+                transition: 'opacity 0.35s ease',
+              }}
+            >
+              <div style={{ padding: '12px 14px 80px', fontFamily: "'Space Grotesk', Arial, sans-serif" }}>
 
-            {/* Header */}
-            <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid #f3f4f6' }}>
-              <div style={{ fontSize: '13px', fontWeight: 800, color: '#111', letterSpacing: '-0.2px' }}>● Construx Daily</div>
-              {issue && <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>{issue.subject.split('|')[0].trim()}</div>}
-            </div>
+                {/* Newsletter header */}
+                <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '12px', borderBottom: '2px solid #F59E0B' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 900, color: '#111', letterSpacing: '-0.3px' }}>● Construx Daily</div>
+                  {issue && (
+                    <div style={{ fontSize: '9px', color: '#9ca3af', marginTop: '3px', fontWeight: 500 }}>
+                      {new Date(issue.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </div>
+                  )}
+                </div>
 
-            {/* BIG ONE */}
-            {bigOne ? (
-              <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
-                <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>The Big One</div>
-                {bigOne.imageUrl && (
-                  <div style={{ width: '100%', height: '110px', borderRadius: '7px', overflow: 'hidden', marginBottom: '7px', background: '#e5e7eb' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={bigOne.imageUrl} alt={bigOne.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {/* All sections */}
+                {sections.length > 0 ? sections.map(({ key, label, items }) => (
+                  <div key={key} style={{ marginBottom: '14px' }}>
+                    <div style={{ fontSize: '8px', fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px', paddingBottom: '5px', borderBottom: '1px solid #f3f4f6' }}>
+                      {label}
+                    </div>
+                    {items.map((item, idx) => (
+                      <div key={item.id} style={{ marginBottom: idx < items.length - 1 ? '10px' : '0', paddingBottom: idx < items.length - 1 ? '10px' : '0', borderBottom: idx < items.length - 1 ? '1px solid #f9fafb' : 'none' }}>
+                        {key === 'BIG_ONE' ? (
+                          <div>
+                            {item.imageUrl && (
+                              <div style={{ width: '100%', height: '120px', borderRadius: '7px', overflow: 'hidden', marginBottom: '8px', background: '#e5e7eb' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            )}
+                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#111', lineHeight: 1.35, marginBottom: '5px' }}>{item.title}</div>
+                            <div style={{ fontSize: '10px', color: '#6b7280', lineHeight: 1.55, marginBottom: '5px' }}>{item.summary}</div>
+                            {item.whyMatters && (
+                              <div style={{ fontSize: '10px', color: '#9ca3af', lineHeight: 1.45 }}>
+                                <span style={{ color: '#d97706', fontWeight: 700 }}>Why it matters:</span>{' '}{item.whyMatters}
+                              </div>
+                            )}
+                            <div style={{ fontSize: '9px', color: '#d1d5db', marginTop: '4px' }}>via {item.sourceName}</div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            {item.imageUrl && (
+                              <div style={{ width: '68px', height: '50px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              </div>
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '11px', fontWeight: 700, color: '#111', lineHeight: 1.3, marginBottom: '3px' }}>{item.title}</div>
+                              <div style={{ fontSize: '10px', color: '#6b7280', lineHeight: 1.45, marginBottom: '3px' }}>
+                                {item.summary.length > 85 ? item.summary.slice(0, 85) + '…' : item.summary}
+                              </div>
+                              <div style={{ fontSize: '9px', color: '#d1d5db' }}>via {item.sourceName}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
+                )) : (
+                  /* Skeleton while loading */
+                  <>
+                    <div style={{ width: '100%', height: '120px', borderRadius: '7px', background: '#f3f4f6', marginBottom: '10px' }} />
+                    {[90, 65, 80].map((w, i) => (
+                      <div key={i} style={{ width: `${w}%`, height: '10px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '6px' }} />
+                    ))}
+                  </>
                 )}
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#111', lineHeight: 1.35, marginBottom: '4px' }}>
-                  {bigOne.title.length > 72 ? bigOne.title.slice(0, 72) + '…' : bigOne.title}
-                </div>
-                <div style={{ fontSize: '10px', color: '#6b7280', lineHeight: 1.45 }}>
-                  {bigOne.summary.length > 90 ? bigOne.summary.slice(0, 90) + '…' : bigOne.summary}
-                </div>
               </div>
-            ) : (
-              <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
-                <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>The Big One</div>
-                <div style={{ width: '100%', height: '110px', borderRadius: '7px', background: '#f3f4f6', marginBottom: '7px' }} />
-                <div style={{ width: '90%', height: '12px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '5px' }} />
-                <div style={{ width: '65%', height: '10px', background: '#f3f4f6', borderRadius: '4px' }} />
-              </div>
-            )}
-
-            {/* IN BRIEF */}
-            <div style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #f3f4f6' }}>
-              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>In Brief</div>
-              {inBrief.length > 0 ? inBrief.map(item => (
-                <div key={item.id} style={{ display: 'flex', gap: '9px', marginBottom: '7px' }}>
-                  {item.imageUrl && (
-                    <div style={{ width: '64px', height: '44px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>
-                      {item.title.length > 58 ? item.title.slice(0, 58) + '…' : item.title}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>via {item.sourceName}</div>
-                  </div>
-                </div>
-              )) : (
-                <>
-                  <div style={{ display: 'flex', gap: '9px', marginBottom: '7px' }}>
-                    <div style={{ width: '64px', height: '44px', borderRadius: '5px', background: '#f3f4f6', flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ width: '90%', height: '10px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '4px' }} />
-                      <div style={{ width: '50%', height: '9px', background: '#f3f4f6', borderRadius: '4px' }} />
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
 
-            {/* NEW TOOLS */}
-            <div>
-              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>New Tools</div>
-              {toolsItem ? (
-                <div style={{ display: 'flex', gap: '9px' }}>
-                  {toolsItem.imageUrl && (
-                    <div style={{ width: '64px', height: '44px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={toolsItem.imageUrl} alt={toolsItem.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>
-                      {toolsItem.title.length > 58 ? toolsItem.title.slice(0, 58) + '…' : toolsItem.title}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>via {toolsItem.sourceName}</div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', gap: '9px' }}>
-                  <div style={{ width: '64px', height: '44px', borderRadius: '5px', background: '#f3f4f6', flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ width: '85%', height: '10px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '4px' }} />
-                    <div style={{ width: '45%', height: '9px', background: '#f3f4f6', borderRadius: '4px' }} />
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Soft fade at bottom so scroll-off looks clean */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '56px', background: 'linear-gradient(to bottom, transparent, #fff)', pointerEvents: 'none' }} />
+          </div>
 
-            {/* Fade bottom */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '70px', background: 'linear-gradient(to bottom, transparent, #fff)', pointerEvents: 'none' }} />
+          {/* Read-progress bar */}
+          <div style={{ height: '3px', background: '#f3f4f6' }}>
+            <div ref={progressRef} style={{ height: '100%', width: '0%', background: 'linear-gradient(90deg, #d97706, #FBBF24)', transition: 'width 0.08s linear' }} />
           </div>
 
         </div>

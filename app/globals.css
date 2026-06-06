@@ -70,6 +70,9 @@ body {
 .logo-ping { animation: logoPing 2s cubic-bezier(0,0,0.2,1) infinite; }
 .logo-dot  { /* static foreground dot — no animation */ }
 
+/* ── Hide scrollbar (mockup) ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* ── Live pulse ── */
 @keyframes livePulse {
   0%,100% { opacity: 1; }
