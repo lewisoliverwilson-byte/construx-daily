@@ -6,16 +6,140 @@
   --amber: #F59E0B;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
-  background-color: #0a0a0a;
+  background-color: #06060f;
   color: #f9fafb;
 }
 
 ::selection {
   background-color: #F59E0B;
-  color: #0a0a0a;
+  color: #000;
+}
+
+/* ── Orb drift ── */
+@keyframes orbDrift1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  25%      { transform: translate(70px,-50px) scale(1.08); }
+  50%      { transform: translate(20px,70px) scale(0.94); }
+  75%      { transform: translate(-50px,20px) scale(1.06); }
+}
+@keyframes orbDrift2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%     { transform: translate(-60px,50px) scale(1.12); }
+  66%     { transform: translate(50px,-40px) scale(0.90); }
+}
+.orb-1 { animation: orbDrift1 22s ease-in-out infinite; }
+.orb-2 { animation: orbDrift2 28s ease-in-out infinite; }
+
+/* ── Ticker ── */
+@keyframes tickerScroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track { animation: tickerScroll 50s linear infinite; }
+.ticker-track:hover { animation-play-state: paused; }
+
+/* ── Floating mockup ── */
+@keyframes floatCard {
+  0%,100% { transform: translateY(0px); }
+  50%     { transform: translateY(-18px); }
+}
+.mockup-float { animation: floatCard 5s ease-in-out infinite; }
+
+/* ── Shimmer headline text ── */
+@keyframes shimmer {
+  0%   { background-position: 0% center; }
+  100% { background-position: 300% center; }
+}
+.text-shimmer {
+  background: linear-gradient(90deg, #F59E0B 0%, #FCD34D 30%, #fffbe6 50%, #FCD34D 70%, #F59E0B 100%);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 4s linear infinite;
+}
+
+/* ── Logo ping dot ── */
+@keyframes logoPing {
+  0%   { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.logo-ping { animation: logoPing 2s cubic-bezier(0,0,0.2,1) infinite; }
+.logo-dot  { /* static foreground dot — no animation */ }
+
+/* ── Live pulse ── */
+@keyframes livePulse {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.live-dot { animation: livePulse 1.6s ease-in-out infinite; }
+
+/* ── Feature cards ── */
+.feature-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 24px;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.feature-card:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(245,158,11,0.25);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px -8px rgba(245,158,11,0.12);
+}
+
+/* ── Hero responsive ── */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 64px;
+  align-items: center;
+  padding: 72px 48px 56px;
+  max-width: 1140px;
+  margin: 0 auto;
+}
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+    padding: 48px 24px 40px;
+  }
+}
+
+/* ── Stats responsive ── */
+.stats-flex {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.stat-divider {
+  width: 1px;
+  height: 48px;
+  background: rgba(255,255,255,0.08);
+  margin: 0 40px;
+}
+@media (max-width: 700px) {
+  .stats-flex { gap: 32px; flex-direction: column; }
+  .stat-divider { display: none; }
+}
+
+/* ── Sections grid ── */
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .sections-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+  .sections-grid { grid-template-columns: 1fr; }
 }

@@ -1,47 +1,261 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 
-// Realistic sample issue data used in the landing page preview
-const SAMPLE = [
-  {
-    label: 'THE BIG ONE',
-    title: 'OpenAI rolls out o3 to all free users — and it\'s already changing the baseline',
-    body: 'OpenAI\'s flagship reasoning model is now available on the free tier — the first time frontier-grade reasoning has shipped to everyone without a subscription.',
-    why: 'The capability baseline for what your users can access just jumped. Products built on GPT-3.5 assumptions need rethinking.',
-    source: 'TechCrunch',
-    image: 'https://picsum.photos/seed/openai-o3/600/280',
-    big: true,
-  },
-  {
-    label: 'IN BRIEF',
-    title: 'Google ships Gemini 2.5 Flash with 1M context window',
-    body: 'The fastest model in the Gemini family now handles 1 million tokens in a single request — roughly 750,000 words.',
-    source: 'Google DeepMind',
-    image: 'https://picsum.photos/seed/google-gemini/300/160',
-  },
-  {
-    label: 'NEW TOOLS',
-    title: 'Cursor 1.0 ships with background agents',
-    body: 'The AI code editor hits 1.0 with agents that run tasks silently while you keep coding — no context switching.',
-    source: 'Cursor',
-    image: 'https://picsum.photos/seed/cursor-ide/300/160',
-  },
-  {
-    label: 'RESEARCH',
-    title: 'Meta: LLMs plan better with "thinking tokens"',
-    body: 'Inserting dedicated scratchpad tokens at inference time improves multi-step reasoning by 18% on standard benchmarks.',
-    source: 'arXiv',
-    image: 'https://picsum.photos/seed/meta-research/300/160',
-  },
+// ─── Data ─────────────────────────────────────────────────────────────────────
+
+const TICKER = [
+  'OpenAI o3 now free to all ChatGPT users',
+  'Google ships Gemini 2.5 Flash with 1M context window',
+  'Meta releases Llama 4 model weights publicly',
+  'Cursor 1.0 launches with silent background agents',
+  'Anthropic Claude 4 Opus sets new benchmark records',
+  'Microsoft Copilot+ reaches 50M enterprise users',
+  'DeepMind AlphaFold 3 goes fully open-source',
+  'Perplexity AI launches enterprise search platform',
+  'Hugging Face surpasses 1 million hosted models',
+  'xAI Grok 3 debuts on X premium tier',
+  'Mistral releases Le Chat for business with vision',
+  'Scale AI raises $1B at $14B valuation',
 ]
+
+const ROTATING_WORDS = ['founders', 'engineers', 'researchers', 'builders', 'product teams', 'investors']
+
+const ISSUE_SECTIONS = [
+  { label: 'The Big One', icon: '🎯', color: '#F59E0B', desc: 'The most important AI story today, with full context and why it matters.' },
+  { label: 'In Brief', icon: '⚡', color: '#60a5fa', desc: 'Five fast takes on stories that matter but don\'t need 500 words.' },
+  { label: 'New Tools', icon: '🔧', color: '#34d399', desc: 'Every launch, release and update across the AI ecosystem.' },
+  { label: 'Research', icon: '🔬', color: '#a78bfa', desc: 'Papers and findings worth knowing — translated out of academic.' },
+  { label: 'Moves & Money', icon: '💰', color: '#fb923c', desc: 'Funding rounds, acquisitions and key appointments.' },
+]
+
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
+function useCountdown() {
+  const [str, setStr] = useState('--:--:--')
+  useEffect(() => {
+    function tick() {
+      const now = new Date()
+      const next = new Date()
+      next.setHours(8, 0, 0, 0)
+      if (now.getHours() >= 8) next.setDate(next.getDate() + 1)
+      const s = Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000))
+      const h = Math.floor(s / 3600)
+      const m = Math.floor((s % 3600) / 60)
+      const sec = s % 60
+      setStr(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [])
+  return str
+}
+
+function useRotating(words: string[], ms = 2800) {
+  const [idx, setIdx] = useState(0)
+  const [out, setOut] = useState(false)
+  useEffect(() => {
+    const id = setInterval(() => {
+      setOut(true)
+      setTimeout(() => { setIdx(i => (i + 1) % words.length); setOut(false) }, 320)
+    }, ms)
+    return () => clearInterval(id)
+  }, [words, ms])
+  return { word: words[idx], out }
+}
+
+function useCountUp(target: number, dur: number, active: boolean) {
+  const [n, setN] = useState(0)
+  useEffect(() => {
+    if (!active) return
+    let t0: number | null = null
+    const step = (ts: number) => {
+      if (!t0) t0 = ts
+      const p = Math.min((ts - t0) / dur, 1)
+      setN(Math.round((1 - Math.pow(1 - p, 3)) * target))
+      if (p < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  }, [target, dur, active])
+  return n
+}
+
+// ─── Stat ─────────────────────────────────────────────────────────────────────
+
+function Stat({ value, unit, label, active }: { value: number; unit: string; label: string; active: boolean }) {
+  const n = useCountUp(value, 1400, active)
+  return (
+    <div style={{ textAlign: 'center', padding: '0 16px' }}>
+      <div style={{ fontSize: '52px', fontWeight: 900, color: '#F59E0B', lineHeight: 1, letterSpacing: '-3px', fontVariantNumeric: 'tabular-nums' }}>
+        {n}<span style={{ fontSize: '26px', letterSpacing: '-1px' }}>{unit}</span>
+      </div>
+      <div style={{ color: '#6b7280', fontSize: '12px', marginTop: '8px', fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{label}</div>
+    </div>
+  )
+}
+
+// ─── 3D Mockup ────────────────────────────────────────────────────────────────
+
+function Mockup() {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+    const wrap = wrapRef.current
+    const card = cardRef.current
+    if (!wrap || !card) return
+    const r = wrap.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width - 0.5
+    const y = (e.clientY - r.top) / r.height - 0.5
+    card.style.transform = `perspective(1100px) rotateX(${-y * 14}deg) rotateY(${x * 18}deg) scale(1.02)`
+    card.style.transition = 'transform 0.06s ease-out'
+  }
+
+  function onLeave() {
+    const card = cardRef.current
+    if (!card) return
+    card.style.transform = 'perspective(1100px) rotateX(6deg) rotateY(-8deg) scale(1)'
+    card.style.transition = 'transform 0.9s cubic-bezier(0.34,1.2,0.64,1)'
+  }
+
+  return (
+    <div ref={wrapRef} onMouseMove={onMove} onMouseLeave={onLeave}
+      style={{ position: 'relative', display: 'flex', justifyContent: 'center', paddingBottom: '40px' }}>
+
+      {/* Glow pool under card */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
+        width: '75%', height: '80px',
+        background: 'radial-gradient(ellipse, rgba(245,158,11,0.40) 0%, transparent 70%)',
+        filter: 'blur(24px)',
+        zIndex: 0,
+      }} />
+
+      {/* Floating wrapper */}
+      <div className="mockup-float" style={{ position: 'relative', zIndex: 1 }}>
+        <div ref={cardRef} style={{
+          width: '380px', maxWidth: '100%',
+          background: '#ffffff',
+          borderRadius: '14px',
+          overflow: 'hidden',
+          boxShadow: '0 60px 100px -30px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,158,11,0.25), 0 0 60px -20px rgba(245,158,11,0.15)',
+          transform: 'perspective(1100px) rotateX(6deg) rotateY(-8deg) scale(1)',
+          transformOrigin: 'center center',
+        }}>
+
+          {/* Browser chrome */}
+          <div style={{ background: '#1c1c1e', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {['#ff5f57','#ffbd2e','#28c840'].map(c => (
+                <span key={c} style={{ width: '11px', height: '11px', borderRadius: '50%', background: c, display: 'block' }} />
+              ))}
+            </div>
+            <div style={{ flex: 1, background: '#2c2c2e', borderRadius: '5px', padding: '4px 10px', fontSize: '10px', color: '#636366', textAlign: 'center' }}>
+              Construx Daily — AI Briefing · {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </div>
+          </div>
+
+          {/* Email sender row */}
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', background: '#fafaf9', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '34px', height: '34px', background: '#F59E0B', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#000', flexShrink: 0 }}>CD</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#111' }}>Construx Daily</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af' }}>daily@construxdaily.com</div>
+            </div>
+            <div style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 600 }}>8:00 AM</div>
+          </div>
+
+          {/* Email body */}
+          <div style={{ padding: '14px 16px', fontFamily: "'Space Grotesk', Arial, sans-serif", position: 'relative', maxHeight: '500px', overflow: 'hidden' }}>
+
+            {/* Header */}
+            <div style={{ textAlign: 'center', paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#111', letterSpacing: '-0.2px' }}>● Construx Daily</div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>Your bite-sized AI briefing</div>
+            </div>
+
+            {/* BIG ONE */}
+            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px' }}>The Big One</div>
+              {/* Hero image */}
+              <div style={{ width: '100%', height: '120px', borderRadius: '8px', overflow: 'hidden', marginBottom: '8px', background: '#e5e7eb' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="https://picsum.photos/seed/openai-o3/400/200" alt="Story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#111', lineHeight: 1.35, marginBottom: '5px' }}>
+                OpenAI rolls out o3 to all free users
+              </div>
+              <div style={{ fontSize: '11px', color: '#6b7280', lineHeight: 1.5, marginBottom: '5px' }}>
+                Frontier reasoning now ships to everyone — no subscription required.
+              </div>
+              <div style={{ fontSize: '10px', color: '#9ca3af', fontStyle: 'italic' }}>
+                <span style={{ color: '#d97706', fontStyle: 'normal', fontWeight: 700 }}>Why it matters:</span>{' '}
+                Your users now have frontier AI. Rebuild your assumptions.
+              </div>
+            </div>
+
+            {/* IN BRIEF */}
+            <div style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #f3f4f6' }}>
+              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px' }}>In Brief</div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ width: '72px', height: '50px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="https://picsum.photos/seed/google-gemini/200/140" alt="Gemini" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>Google ships Gemini 2.5 Flash with 1M context</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>via Google DeepMind</div>
+                </div>
+              </div>
+            </div>
+
+            {/* NEW TOOLS */}
+            <div>
+              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px' }}>New Tools</div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ width: '72px', height: '50px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="https://picsum.photos/seed/cursor-ide/200/140" alt="Cursor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>Cursor 1.0 ships with background agents</div>
+                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>via Cursor</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fade bottom */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '70px', background: 'linear-gradient(to bottom, transparent, #fff)', pointerEvents: 'none' }} />
+          </div>
+
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const [email, setEmail] = useState('')
-  const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [state, setState] = useState<'idle'|'loading'|'success'|'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [statsActive, setStatsActive] = useState(false)
+  const statsRef = useRef<HTMLDivElement>(null)
+  const countdown = useCountdown()
+  const { word, out } = useRotating(ROTATING_WORDS)
+
+  useEffect(() => {
+    const el = statsRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setStatsActive(true); obs.disconnect() }
+    }, { threshold: 0.25 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -54,13 +268,9 @@ export default function HomePage() {
         body: JSON.stringify({ email }),
       })
       let data: { ok?: boolean; error?: string } = {}
-      try { data = await res.json() } catch { /* non-JSON body (e.g. HTML 500) */ }
-      if (!res.ok) {
-        setErrorMsg(data.error || 'Something went wrong. Please try again.')
-        setState('error')
-      } else {
-        setState('success')
-      }
+      try { data = await res.json() } catch {}
+      if (!res.ok) { setErrorMsg(data.error || 'Something went wrong. Please try again.'); setState('error') }
+      else setState('success')
     } catch {
       setErrorMsg('Could not reach the server. Please check your connection.')
       setState('error')
@@ -68,271 +278,372 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] text-[#111827] font-sans">
+    <div style={{ minHeight: '100vh', background: '#06060f', color: '#f9fafb', fontFamily: "'Space Grotesk', Arial, sans-serif", overflowX: 'hidden', position: 'relative' }}>
 
-      {/* Nav */}
-      <nav className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-            <span className="font-bold text-[#111827] tracking-tight">Construx Daily</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/archive" className="text-gray-500 text-sm hover:text-gray-900 transition-colors">Archive</Link>
-            {state !== 'success' && (
-              <a href="#subscribe" className="bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold px-4 py-2 rounded-md transition-colors">
-                Subscribe free
-              </a>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero */}
-      <section className="bg-white border-b border-gray-100 px-6 py-20 sm:py-28 text-center">
-        <div className="max-w-3xl mx-auto">
-
-          <div className="inline-flex items-center gap-2 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 mb-8 tracking-wide uppercase">
-            Free · Every morning at 8am
-          </div>
-
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05] mb-6 text-[#111827]">
-            AI news that fits<br />
-            in your <span className="text-amber-500 relative">
-              morning coffee.
-              <svg className="absolute -bottom-1 left-0 w-full" viewBox="0 0 300 8" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M2 6C50 2 100 1 150 3C200 5 250 6 298 4" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" opacity="0.4"/>
-              </svg>
-            </span>
-          </h1>
-
-          <p className="text-gray-500 text-lg sm:text-xl leading-relaxed mb-10 max-w-xl mx-auto">
-            The most important AI stories, summarised in bite-sized chunks.
-            No fluff, no filler — just signal.
-          </p>
-
-          {state === 'success' ? (
-            <div id="subscribe" className="max-w-md mx-auto bg-amber-50 border border-amber-200 rounded-xl p-6">
-              <p className="font-semibold text-amber-900 mb-1">Check your inbox.</p>
-              <p className="text-amber-700 text-sm">We sent a confirmation to <strong>{email}</strong>. Click it to confirm your subscription.</p>
-            </div>
-          ) : (
-            <form id="subscribe" onSubmit={handleSubmit} className="max-w-md mx-auto">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  required
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 text-[#111827] placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-sm bg-white"
-                />
-                <button
-                  type="submit"
-                  disabled={state === 'loading'}
-                  className="bg-amber-500 hover:bg-amber-400 text-white font-semibold px-6 py-3 rounded-lg text-sm transition-colors disabled:opacity-60 whitespace-nowrap shadow-sm"
-                >
-                  {state === 'loading' ? 'Subscribing…' : 'Subscribe free →'}
-                </button>
-              </div>
-              {state === 'error' && <p className="text-red-500 text-sm mt-2 text-left">{errorMsg}</p>}
-              <p className="text-gray-400 text-xs mt-3">Double opt-in. Unsubscribe in one click. No spam.</p>
-            </form>
-          )}
-        </div>
-      </section>
-
-      {/* Social proof bar */}
-      <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
-          <span className="text-gray-400 text-xs font-medium uppercase tracking-widest">Built for</span>
-          {['Founders', 'Engineers', 'Product teams', 'Researchers', 'Investors'].map(label => (
-            <span key={label} className="text-gray-500 text-sm font-medium">{label}</span>
-          ))}
-        </div>
+      {/* ── Animated background ── */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+        {/* Amber orb — top left */}
+        <div className="orb-1" style={{
+          position: 'absolute', top: '-280px', left: '-180px',
+          width: '800px', height: '800px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.13) 0%, transparent 68%)',
+          filter: 'blur(50px)',
+        }} />
+        {/* Indigo orb — bottom right */}
+        <div className="orb-2" style={{
+          position: 'absolute', bottom: '-350px', right: '-250px',
+          width: '1000px', height: '1000px', borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 68%)',
+          filter: 'blur(70px)',
+        }} />
+        {/* Subtle grid */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px)',
+          backgroundSize: '72px 72px',
+        }} />
       </div>
 
-      {/* Sample issue — realistic email preview */}
-      <section className="px-4 py-20 bg-[#f4f4f0]">
-        <div className="max-w-[640px] mx-auto">
+      <div style={{ position: 'relative', zIndex: 1 }}>
 
-          <div className="text-center mb-10">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">This is what lands in your inbox</p>
-            <h2 className="text-2xl font-bold text-[#111827]">Today&apos;s issue, every morning at 8am</h2>
-          </div>
-
-          {/* Email chrome wrapper */}
-          <div className="bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-200">
-
-            {/* Email client chrome bar */}
-            <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 flex items-center gap-3">
-              <div className="flex gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-red-400" />
-                <span className="w-3 h-3 rounded-full bg-amber-400" />
-                <span className="w-3 h-3 rounded-full bg-green-400" />
+        {/* ── Nav ── */}
+        <nav style={{
+          position: 'sticky', top: 0, zIndex: 100,
+          backdropFilter: 'blur(24px) saturate(180%)',
+          background: 'rgba(6,6,15,0.82)',
+          borderBottom: '1px solid rgba(255,255,255,0.055)',
+          padding: '13px 40px',
+        }}>
+          <div style={{ maxWidth: '1140px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ position: 'relative', width: '10px', height: '10px', flexShrink: 0 }}>
+                <div className="logo-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#F59E0B' }} />
+                <div className="logo-dot" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#F59E0B' }} />
               </div>
-              <div className="flex-1 bg-white border border-gray-200 rounded px-3 py-1 text-xs text-gray-400 text-center">
-                Construx Daily — Today&apos;s AI briefing | Friday 6 June
-              </div>
+              <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '-0.4px' }}>Construx Daily</span>
             </div>
-
-            {/* Email body */}
-            <div className="px-7 py-6 font-sans">
-
-              {/* Email header */}
-              <div className="text-center pb-5 border-b border-gray-100 mb-5">
-                <p className="text-base font-bold text-[#111827] mb-0.5">● Construx Daily</p>
-                <p className="text-xs text-gray-400">Your bite-sized AI briefing · Friday, 6 June</p>
-              </div>
-
-              {/* THE BIG ONE with hero image */}
-              <div className="mb-6 pb-6 border-b border-gray-100">
-                <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-amber-600 mb-3">The Big One</p>
-                <div className="relative w-full aspect-[600/280] rounded-lg overflow-hidden mb-4 bg-gray-100">
-                  <Image
-                    src={SAMPLE[0].image}
-                    alt={SAMPLE[0].title}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-                <a className="text-[#111827] font-bold text-[17px] leading-snug block mb-2 hover:text-amber-600 transition-colors cursor-pointer">
-                  {SAMPLE[0].title}
-                </a>
-                <p className="text-gray-600 text-sm leading-relaxed mb-2">{SAMPLE[0].body}</p>
-                <p className="text-gray-400 text-xs italic mb-1">
-                  <span className="text-amber-600 font-semibold not-italic">Why it matters:</span>{' '}{SAMPLE[0].why}
-                </p>
-                <p className="text-gray-400 text-[11px]">via {SAMPLE[0].source}</p>
-              </div>
-
-              {/* Remaining sections with thumbnails */}
-              <div className="space-y-5">
-                {SAMPLE.slice(1).map((item, i) => (
-                  <div key={i} className="pb-5 border-b border-gray-100 last:border-0 last:pb-0">
-                    <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-amber-600 mb-2">{item.label}</p>
-                    <div className="flex gap-3 items-start">
-                      <div className="relative flex-shrink-0 w-[110px] h-[72px] rounded overflow-hidden bg-gray-100">
-                        <Image
-                          src={item.image}
-                          alt={item.title}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <a className="text-[#111827] font-semibold text-[13px] leading-snug block mb-1 hover:text-amber-600 transition-colors cursor-pointer">
-                          {item.title}
-                        </a>
-                        <p className="text-gray-500 text-xs leading-relaxed mb-1">{item.body}</p>
-                        <p className="text-gray-400 text-[11px]">via {item.source}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Email footer */}
-              <div className="mt-6 pt-5 border-t border-gray-100 text-center bg-gray-50 -mx-7 px-7 -mb-6 pb-6">
-                <p className="text-gray-400 text-xs">
-                  <span className="underline cursor-pointer">Unsubscribe</span>{' · '}
-                  <span className="underline cursor-pointer">View in browser</span>
-                </p>
-                <p className="text-gray-300 text-[10px] mt-1">Construx Group Ltd · London, UK</p>
-              </div>
+            {/* Nav links */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+              <Link href="/archive" style={{ color: '#6b7280', fontSize: '14px', textDecoration: 'none', transition: 'color 0.15s' }}>Archive</Link>
+              {state !== 'success' && (
+                <a href="#subscribe" style={{
+                  background: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
+                  color: '#000', fontWeight: 800, fontSize: '13px',
+                  padding: '9px 20px', borderRadius: '8px', textDecoration: 'none',
+                  letterSpacing: '-0.2px',
+                  boxShadow: '0 4px 16px rgba(245,158,11,0.28)',
+                }}>Subscribe free →</a>
+              )}
             </div>
           </div>
+        </nav>
 
-          {/* CTA below preview */}
-          <div className="text-center mt-8">
+        {/* ── Hero ── */}
+        <div className="hero-grid">
+
+          {/* Left: copy */}
+          <div>
+            {/* Countdown badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '10px',
+              background: 'rgba(245,158,11,0.07)',
+              border: '1px solid rgba(245,158,11,0.22)',
+              borderRadius: '100px', padding: '7px 16px 7px 12px',
+              marginBottom: '32px',
+            }}>
+              <span className="live-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 700, letterSpacing: '0.03em' }}>
+                NEXT ISSUE IN{' '}
+                <span style={{ fontFamily: 'monospace', fontSize: '13px', letterSpacing: '0.06em', color: '#fff' }}>{countdown}</span>
+              </span>
+            </div>
+
+            {/* Headline */}
+            <h1 style={{
+              fontSize: 'clamp(38px, 4.8vw, 62px)',
+              fontWeight: 900,
+              lineHeight: 1.04,
+              letterSpacing: '-2.5px',
+              margin: '0 0 22px',
+              color: '#f9fafb',
+            }}>
+              The AI briefing
+              <br />
+              your morning{' '}
+              <span className="text-shimmer">deserves.</span>
+            </h1>
+
+            {/* Sub */}
+            <p style={{ fontSize: '18px', color: '#9ca3af', lineHeight: 1.6, margin: '0 0 10px' }}>
+              Every breakthrough, launch and discovery — distilled to 90 seconds.
+            </p>
+
+            {/* Rotating audience */}
+            <p style={{ fontSize: '15px', color: '#6b7280', margin: '0 0 40px', minHeight: '24px' }}>
+              Read by{' '}
+              <span style={{
+                color: '#fbbf24', fontWeight: 700,
+                display: 'inline-block',
+                transition: 'opacity 0.28s, transform 0.28s',
+                opacity: out ? 0 : 1,
+                transform: out ? 'translateY(-6px)' : 'translateY(0)',
+              }}>
+                {word}
+              </span>
+              {' '}worldwide.
+            </p>
+
+            {/* Subscribe form */}
             {state === 'success' ? (
-              <p className="text-amber-600 font-semibold text-sm">You&apos;re subscribed. See you at 8am.</p>
+              <div id="subscribe" style={{
+                background: 'rgba(245,158,11,0.08)',
+                border: '1px solid rgba(245,158,11,0.25)',
+                borderRadius: '14px', padding: '22px 26px',
+              }}>
+                <p style={{ fontWeight: 800, color: '#fbbf24', margin: '0 0 6px', fontSize: '17px' }}>Check your inbox.</p>
+                <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0, lineHeight: 1.5 }}>
+                  Confirmation sent to <strong style={{ color: '#f9fafb' }}>{email}</strong>. Click it to confirm your spot.
+                </p>
+              </div>
             ) : (
-              <a href="#subscribe" className="inline-block bg-amber-500 hover:bg-amber-400 text-white font-semibold px-8 py-3 rounded-lg text-sm transition-colors shadow-sm">
-                Get this every morning →
-              </a>
+              <div id="subscribe">
+                <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    style={{
+                      flex: 1, minWidth: 0,
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: '11px',
+                      padding: '15px 18px',
+                      color: '#f9fafb', fontSize: '15px', outline: 'none',
+                      transition: 'border-color 0.15s, box-shadow 0.15s',
+                    }}
+                    onFocus={e => {
+                      e.target.style.borderColor = 'rgba(245,158,11,0.55)'
+                      e.target.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.10)'
+                    }}
+                    onBlur={e => {
+                      e.target.style.borderColor = 'rgba(255,255,255,0.10)'
+                      e.target.style.boxShadow = 'none'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={state === 'loading'}
+                    style={{
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
+                      color: '#000', fontWeight: 800, fontSize: '14px',
+                      padding: '15px 24px', borderRadius: '11px',
+                      border: 'none', cursor: 'pointer',
+                      whiteSpace: 'nowrap', letterSpacing: '-0.2px',
+                      boxShadow: '0 4px 24px rgba(245,158,11,0.38)',
+                      transition: 'opacity 0.15s, box-shadow 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.target as HTMLButtonElement).style.boxShadow = '0 6px 32px rgba(245,158,11,0.55)' }}
+                    onMouseLeave={e => { (e.target as HTMLButtonElement).style.boxShadow = '0 4px 24px rgba(245,158,11,0.38)' }}
+                  >
+                    {state === 'loading' ? 'Subscribing…' : 'Subscribe free →'}
+                  </button>
+                </form>
+                {state === 'error' && <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px', margin: '10px 0 0' }}>{errorMsg}</p>}
+                <p style={{ color: '#374151', fontSize: '12px', marginTop: '12px', margin: '12px 0 0' }}>Free. Double opt-in. Unsubscribe anytime.</p>
+              </div>
             )}
           </div>
-        </div>
-      </section>
 
-      {/* Why section */}
-      <section className="bg-white border-t border-gray-100 px-6 py-16">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Why Construx Daily</p>
-            <h2 className="text-2xl font-bold text-[#111827]">The signal, without the noise</h2>
+          {/* Right: 3D mockup */}
+          <Mockup />
+        </div>
+
+        {/* ── Breaking news ticker ── */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.045)',
+          borderBottom: '1px solid rgba(255,255,255,0.045)',
+          background: 'rgba(0,0,0,0.3)',
+          overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'stretch' }}>
+            {/* LIVE badge */}
+            <div style={{
+              flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: '#F59E0B', color: '#000',
+              fontWeight: 900, fontSize: '11px', letterSpacing: '0.12em',
+              padding: '13px 18px',
+              textTransform: 'uppercase',
+            }}>
+              <span className="live-dot" style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#000', display: 'block' }} />
+              LIVE
+            </div>
+            {/* Scrolling headlines */}
+            <div style={{ overflow: 'hidden', flex: 1 }}>
+              <div className="ticker-track" style={{ display: 'inline-flex', whiteSpace: 'nowrap', padding: '13px 0' }}>
+                {[...TICKER, ...TICKER].map((item, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', paddingRight: '48px' }}>
+                    <span style={{ color: '#9ca3af', fontSize: '13px', fontWeight: 500 }}>{item}</span>
+                    <span style={{ marginLeft: '48px', color: '#2d2d3a', fontSize: '16px' }}>◆</span>
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              {
-                icon: '⚡',
-                title: '90 seconds',
-                desc: 'Every issue is designed to read in under two minutes. We cut everything that isn\'t essential.',
-              },
-              {
-                icon: '🎯',
-                title: 'Original summaries',
-                desc: 'We write our own take on every story — never copy-paste. Every source is linked and credited.',
-              },
-              {
-                icon: '📬',
-                title: '8am, every morning',
-                desc: 'Compiled automatically each day. You start with the full picture before your first meeting.',
-              },
-            ].map(item => (
-              <div key={item.title} className="text-center p-6 rounded-xl border border-gray-100 bg-gray-50">
-                <div className="text-3xl mb-3">{item.icon}</div>
-                <p className="font-bold text-[#111827] mb-2">{item.title}</p>
-                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
+        </div>
+
+        {/* ── Stats ── */}
+        <div ref={statsRef} style={{ padding: '60px 32px', borderBottom: '1px solid rgba(255,255,255,0.045)' }}>
+          <div className="stats-flex">
+            <Stat value={11} unit="" label="Sources monitored" active={statsActive} />
+            <div className="stat-divider" />
+            <Stat value={90} unit="s" label="Avg. read time" active={statsActive} />
+            <div className="stat-divider" />
+            <Stat value={5} unit="" label="Curated sections" active={statsActive} />
+            <div className="stat-divider" />
+            <Stat value={8} unit="am" label="Daily send time" active={statsActive} />
+          </div>
+        </div>
+
+        {/* ── What's inside ── */}
+        <section style={{ padding: '80px 48px', maxWidth: '1140px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#4b5563', marginBottom: '14px' }}>
+              Every issue, every morning
+            </p>
+            <h2 style={{ fontSize: 'clamp(28px, 3.5vw, 42px)', fontWeight: 900, letterSpacing: '-2px', color: '#f9fafb', margin: 0, lineHeight: 1.1 }}>
+              Five sections.{' '}<span className="text-shimmer">Zero filler.</span>
+            </h2>
+          </div>
+          <div className="sections-grid">
+            {ISSUE_SECTIONS.map(s => (
+              <div key={s.label} className="feature-card">
+                <div style={{ fontSize: '30px', marginBottom: '14px' }}>{s.icon}</div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: s.color, marginBottom: '8px', letterSpacing: '-0.1px' }}>{s.label}</div>
+                <div style={{ fontSize: '13px', color: '#6b7280', lineHeight: 1.6 }}>{s.desc}</div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Bottom CTA */}
-      {state !== 'success' && (
-        <section className="px-6 py-16 bg-[#111827]">
-          <div className="max-w-xl mx-auto text-center">
-            <p className="text-amber-500 text-xs font-semibold uppercase tracking-widest mb-3">Free forever</p>
-            <h2 className="text-2xl font-bold text-white mb-2">Start tomorrow morning.</h2>
-            <p className="text-gray-400 text-sm mb-8">Subscribe now and your first issue arrives at 8am tomorrow.</p>
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-                className="flex-1 border border-white/20 bg-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 text-sm"
-              />
-              <button
-                type="submit"
-                disabled={state === 'loading'}
-                className="bg-amber-500 hover:bg-amber-400 text-white font-semibold px-5 py-3 rounded-lg text-sm transition-colors disabled:opacity-60 whitespace-nowrap"
-              >
-                {state === 'loading' ? '…' : 'Subscribe →'}
-              </button>
-            </form>
-          </div>
         </section>
-      )}
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white px-6 py-6 text-center">
-        <div className="flex items-center justify-center gap-6 mb-3">
-          <Link href="/archive" className="text-gray-400 text-xs hover:text-gray-600 transition-colors">Archive</Link>
-          <span className="text-gray-200">·</span>
-          <span className="text-gray-400 text-xs">
-            A <a href="https://construxgroup.com" className="hover:text-gray-600 transition-colors">Construx Group</a> venture
-          </span>
-        </div>
-        <p className="text-gray-300 text-xs">Construx Group Ltd · London, UK</p>
-      </footer>
+        {/* ── Quote / Manifesto ── */}
+        <section style={{
+          padding: '72px 48px',
+          borderTop: '1px solid rgba(255,255,255,0.045)',
+          borderBottom: '1px solid rgba(255,255,255,0.045)',
+          background: 'rgba(0,0,0,0.2)',
+          textAlign: 'center',
+        }}>
+          <blockquote style={{
+            maxWidth: '720px', margin: '0 auto',
+            fontSize: 'clamp(20px, 2.8vw, 30px)',
+            fontWeight: 700, lineHeight: 1.4,
+            letterSpacing: '-0.5px',
+            color: '#f9fafb',
+          }}>
+            &ldquo;The AI world moves so fast that missing one week means missing a decade.
+            {' '}<span className="text-shimmer">Construx Daily keeps you in the room.</span>&rdquo;
+          </blockquote>
+        </section>
 
+        {/* ── Bottom CTA ── */}
+        {state !== 'success' && (
+          <section style={{ padding: '48px 32px 72px' }}>
+            <div style={{
+              maxWidth: '1140px', margin: '0 auto',
+              borderRadius: '28px', overflow: 'hidden',
+              position: 'relative',
+              background: 'linear-gradient(140deg, #100500 0%, #0d0020 45%, #001408 100%)',
+              border: '1px solid rgba(245,158,11,0.12)',
+            }}>
+              {/* Mesh overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: [
+                  'radial-gradient(ellipse at 25% 50%, rgba(245,158,11,0.13) 0%, transparent 55%)',
+                  'radial-gradient(ellipse at 75% 50%, rgba(99,102,241,0.07) 0%, transparent 55%)',
+                ].join(', '),
+              }} />
+              {/* Grid overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px)',
+                backgroundSize: '60px 60px',
+              }} />
+
+              <div style={{ position: 'relative', padding: '72px 32px', textAlign: 'center', maxWidth: '580px', margin: '0 auto' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#F59E0B', marginBottom: '18px' }}>
+                  Free forever · No credit card
+                </div>
+                <h2 style={{ fontSize: 'clamp(32px, 4vw, 52px)', fontWeight: 900, letterSpacing: '-2.5px', color: '#f9fafb', margin: '0 0 14px', lineHeight: 1.05 }}>
+                  Start tomorrow<br />at 8am.
+                </h2>
+                <p style={{ color: '#6b7280', fontSize: '16px', margin: '0 0 40px', lineHeight: 1.6 }}>
+                  Subscribe now. Your first issue arrives tomorrow morning.
+                </p>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '8px', maxWidth: '420px', margin: '0 auto' }}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    style={{
+                      flex: 1, minWidth: 0,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: '11px',
+                      padding: '15px 18px',
+                      color: '#f9fafb', fontSize: '14px', outline: 'none',
+                    }}
+                    onFocus={e => { e.target.style.borderColor = 'rgba(245,158,11,0.6)'; e.target.style.boxShadow = '0 0 0 3px rgba(245,158,11,0.10)' }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.10)'; e.target.style.boxShadow = 'none' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={state === 'loading'}
+                    style={{
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
+                      color: '#000', fontWeight: 800, fontSize: '14px',
+                      padding: '15px 22px', borderRadius: '11px',
+                      border: 'none', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 4px 28px rgba(245,158,11,0.45)',
+                    }}
+                  >
+                    {state === 'loading' ? '…' : 'Subscribe →'}
+                  </button>
+                </form>
+                {state === 'error' && <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px' }}>{errorMsg}</p>}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Footer ── */}
+        <footer style={{
+          borderTop: '1px solid rgba(255,255,255,0.045)',
+          padding: '28px 40px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }} />
+            <span style={{ fontWeight: 800, fontSize: '14px', color: '#4b5563' }}>Construx Daily</span>
+          </div>
+          <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+            <Link href="/archive" style={{ color: '#4b5563', fontSize: '12px', textDecoration: 'none' }}>Archive</Link>
+            <span style={{ color: '#1f2937', fontSize: '12px' }}>
+              A <a href="https://construxgroup.com" style={{ color: '#4b5563', textDecoration: 'none' }}>Construx Group</a> venture
+            </span>
+            <span style={{ color: '#1f2937', fontSize: '12px' }}>Construx Group Ltd · London, UK</span>
+          </div>
+        </footer>
+
+      </div>
     </div>
   )
 }
