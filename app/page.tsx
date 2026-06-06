@@ -3,6 +3,30 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface IssueItem {
+  id: string
+  section: string
+  position: number
+  title: string
+  summary: string
+  whyMatters: string
+  sourceUrl: string
+  sourceName: string
+  originalTitle: string
+  imageUrl: string | null
+}
+
+interface Issue {
+  id: string
+  slug: string
+  date: string
+  subject: string
+  previewText: string
+  items: IssueItem[]
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const TICKER = [
@@ -33,18 +57,22 @@ const ISSUE_SECTIONS = [
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 function useCountdown() {
-  const [str, setStr] = useState('--:--:--')
+  const [str, setStr] = useState({ h: '--', m: '--', s: '--' })
   useEffect(() => {
     function tick() {
       const now = new Date()
       const next = new Date()
       next.setHours(8, 0, 0, 0)
       if (now.getHours() >= 8) next.setDate(next.getDate() + 1)
-      const s = Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000))
-      const h = Math.floor(s / 3600)
-      const m = Math.floor((s % 3600) / 60)
-      const sec = s % 60
-      setStr(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`)
+      const total = Math.max(0, Math.floor((next.getTime() - now.getTime()) / 1000))
+      const h = Math.floor(total / 3600)
+      const m = Math.floor((total % 3600) / 60)
+      const s = total % 60
+      setStr({
+        h: String(h).padStart(2, '0'),
+        m: String(m).padStart(2, '0'),
+        s: String(s).padStart(2, '0'),
+      })
     }
     tick()
     const id = setInterval(tick, 1000)
@@ -82,6 +110,17 @@ function useCountUp(target: number, dur: number, active: boolean) {
   return n
 }
 
+function useRecentIssues() {
+  const [issues, setIssues] = useState<Issue[]>([])
+  useEffect(() => {
+    fetch('/api/issues/recent')
+      .then(r => r.json())
+      .then(setIssues)
+      .catch(() => {})
+  }, [])
+  return issues
+}
+
 // ─── Stat ─────────────────────────────────────────────────────────────────────
 
 function Stat({ value, unit, label, active }: { value: number; unit: string; label: string; active: boolean }) {
@@ -96,11 +135,26 @@ function Stat({ value, unit, label, active }: { value: number; unit: string; lab
   )
 }
 
-// ─── 3D Mockup ────────────────────────────────────────────────────────────────
+// ─── Live Mockup ──────────────────────────────────────────────────────────────
 
-function Mockup() {
+function LiveMockup({ issues }: { issues: Issue[] }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const [fade, setFade] = useState(true)
+
+  // Auto-cycle every 6s
+  useEffect(() => {
+    if (issues.length < 2) return
+    const id = setInterval(() => {
+      setFade(false)
+      setTimeout(() => {
+        setActiveIdx(i => (i + 1) % issues.length)
+        setFade(true)
+      }, 350)
+    }, 6000)
+    return () => clearInterval(id)
+  }, [issues.length])
 
   function onMove(e: React.MouseEvent<HTMLDivElement>) {
     const wrap = wrapRef.current
@@ -120,18 +174,47 @@ function Mockup() {
     card.style.transition = 'transform 0.9s cubic-bezier(0.34,1.2,0.64,1)'
   }
 
+  const issue = issues[activeIdx]
+  const bigOne = issue?.items.find(i => i.section === 'BIG_ONE')
+  const inBrief = issue?.items.filter(i => i.section === 'IN_BRIEF').slice(0, 2) ?? []
+  const toolsItem = issue?.items.find(i => i.section === 'TOOLS')
+
+  const dateLabel = issue
+    ? new Date(issue.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    : new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+
   return (
     <div ref={wrapRef} onMouseMove={onMove} onMouseLeave={onLeave}
-      style={{ position: 'relative', display: 'flex', justifyContent: 'center', paddingBottom: '40px' }}>
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '40px' }}>
 
       {/* Glow pool under card */}
       <div style={{
         position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
         width: '75%', height: '80px',
         background: 'radial-gradient(ellipse, rgba(245,158,11,0.40) 0%, transparent 70%)',
-        filter: 'blur(24px)',
-        zIndex: 0,
+        filter: 'blur(24px)', zIndex: 0,
       }} />
+
+      {/* Issue indicator dots */}
+      {issues.length > 1 && (
+        <div style={{ display: 'flex', gap: '7px', marginBottom: '18px', zIndex: 2 }}>
+          {issues.map((iss, i) => (
+            <button
+              key={iss.id}
+              onClick={() => { setFade(false); setTimeout(() => { setActiveIdx(i); setFade(true) }, 350) }}
+              style={{
+                width: i === activeIdx ? '22px' : '7px',
+                height: '7px',
+                borderRadius: '4px',
+                background: i === activeIdx ? '#F59E0B' : 'rgba(255,255,255,0.15)',
+                border: 'none', cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.34,1.2,0.64,1)',
+                padding: 0,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Floating wrapper */}
       <div className="mockup-float" style={{ position: 'relative', zIndex: 1 }}>
@@ -148,12 +231,12 @@ function Mockup() {
           {/* Browser chrome */}
           <div style={{ background: '#1c1c1e', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ display: 'flex', gap: '6px' }}>
-              {['#ff5f57','#ffbd2e','#28c840'].map(c => (
+              {['#ff5f57', '#ffbd2e', '#28c840'].map(c => (
                 <span key={c} style={{ width: '11px', height: '11px', borderRadius: '50%', background: c, display: 'block' }} />
               ))}
             </div>
             <div style={{ flex: 1, background: '#2c2c2e', borderRadius: '5px', padding: '4px 10px', fontSize: '10px', color: '#636366', textAlign: 'center' }}>
-              Construx Daily — AI Briefing · {new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+              Construx Daily · {dateLabel}
             </div>
           </div>
 
@@ -167,63 +250,104 @@ function Mockup() {
             <div style={{ fontSize: '10px', color: '#9ca3af', fontWeight: 600 }}>8:00 AM</div>
           </div>
 
-          {/* Email body */}
-          <div style={{ padding: '14px 16px', fontFamily: "'Space Grotesk', Arial, sans-serif", position: 'relative', maxHeight: '500px', overflow: 'hidden' }}>
+          {/* Email body — fades when cycling */}
+          <div style={{
+            padding: '14px 16px', fontFamily: "'Space Grotesk', Arial, sans-serif",
+            position: 'relative', maxHeight: '520px', overflow: 'hidden',
+            opacity: fade ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+          }}>
 
             {/* Header */}
-            <div style={{ textAlign: 'center', paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
+            <div style={{ textAlign: 'center', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1px solid #f3f4f6' }}>
               <div style={{ fontSize: '13px', fontWeight: 800, color: '#111', letterSpacing: '-0.2px' }}>● Construx Daily</div>
-              <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>Your bite-sized AI briefing</div>
+              {issue && <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>{issue.subject.split('|')[0].trim()}</div>}
             </div>
 
             {/* BIG ONE */}
-            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
-              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px' }}>The Big One</div>
-              {/* Hero image */}
-              <div style={{ width: '100%', height: '120px', borderRadius: '8px', overflow: 'hidden', marginBottom: '8px', background: '#e5e7eb' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="https://picsum.photos/seed/openai-o3/400/200" alt="Story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {bigOne ? (
+              <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>The Big One</div>
+                {bigOne.imageUrl && (
+                  <div style={{ width: '100%', height: '110px', borderRadius: '7px', overflow: 'hidden', marginBottom: '7px', background: '#e5e7eb' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={bigOne.imageUrl} alt={bigOne.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#111', lineHeight: 1.35, marginBottom: '4px' }}>
+                  {bigOne.title.length > 72 ? bigOne.title.slice(0, 72) + '…' : bigOne.title}
+                </div>
+                <div style={{ fontSize: '10px', color: '#6b7280', lineHeight: 1.45 }}>
+                  {bigOne.summary.length > 90 ? bigOne.summary.slice(0, 90) + '…' : bigOne.summary}
+                </div>
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#111', lineHeight: 1.35, marginBottom: '5px' }}>
-                OpenAI rolls out o3 to all free users
+            ) : (
+              <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #f3f4f6' }}>
+                <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>The Big One</div>
+                <div style={{ width: '100%', height: '110px', borderRadius: '7px', background: '#f3f4f6', marginBottom: '7px' }} />
+                <div style={{ width: '90%', height: '12px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '5px' }} />
+                <div style={{ width: '65%', height: '10px', background: '#f3f4f6', borderRadius: '4px' }} />
               </div>
-              <div style={{ fontSize: '11px', color: '#6b7280', lineHeight: 1.5, marginBottom: '5px' }}>
-                Frontier reasoning now ships to everyone — no subscription required.
-              </div>
-              <div style={{ fontSize: '10px', color: '#9ca3af', fontStyle: 'italic' }}>
-                <span style={{ color: '#d97706', fontStyle: 'normal', fontWeight: 700 }}>Why it matters:</span>{' '}
-                Your users now have frontier AI. Rebuild your assumptions.
-              </div>
-            </div>
+            )}
 
             {/* IN BRIEF */}
             <div style={{ marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid #f3f4f6' }}>
-              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px' }}>In Brief</div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ width: '72px', height: '50px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="https://picsum.photos/seed/google-gemini/200/140" alt="Gemini" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>In Brief</div>
+              {inBrief.length > 0 ? inBrief.map(item => (
+                <div key={item.id} style={{ display: 'flex', gap: '9px', marginBottom: '7px' }}>
+                  {item.imageUrl && (
+                    <div style={{ width: '64px', height: '44px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>
+                      {item.title.length > 58 ? item.title.slice(0, 58) + '…' : item.title}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>via {item.sourceName}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>Google ships Gemini 2.5 Flash with 1M context</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>via Google DeepMind</div>
-                </div>
-              </div>
+              )) : (
+                <>
+                  <div style={{ display: 'flex', gap: '9px', marginBottom: '7px' }}>
+                    <div style={{ width: '64px', height: '44px', borderRadius: '5px', background: '#f3f4f6', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ width: '90%', height: '10px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '4px' }} />
+                      <div style={{ width: '50%', height: '9px', background: '#f3f4f6', borderRadius: '4px' }} />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* NEW TOOLS */}
             <div>
-              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '8px' }}>New Tools</div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ width: '72px', height: '50px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="https://picsum.photos/seed/cursor-ide/200/140" alt="Cursor" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ fontSize: '9px', fontWeight: 800, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#d97706', marginBottom: '7px' }}>New Tools</div>
+              {toolsItem ? (
+                <div style={{ display: 'flex', gap: '9px' }}>
+                  {toolsItem.imageUrl && (
+                    <div style={{ width: '64px', height: '44px', borderRadius: '5px', overflow: 'hidden', flexShrink: 0, background: '#e5e7eb' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={toolsItem.imageUrl} alt={toolsItem.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '10px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>
+                      {toolsItem.title.length > 58 ? toolsItem.title.slice(0, 58) + '…' : toolsItem.title}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '2px' }}>via {toolsItem.sourceName}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>Cursor 1.0 ships with background agents</div>
-                  <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '3px' }}>via Cursor</div>
+              ) : (
+                <div style={{ display: 'flex', gap: '9px' }}>
+                  <div style={{ width: '64px', height: '44px', borderRadius: '5px', background: '#f3f4f6', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ width: '85%', height: '10px', background: '#e5e7eb', borderRadius: '4px', marginBottom: '4px' }} />
+                    <div style={{ width: '45%', height: '9px', background: '#f3f4f6', borderRadius: '4px' }} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Fade bottom */}
@@ -236,16 +360,132 @@ function Mockup() {
   )
 }
 
+// ─── Countdown Section ────────────────────────────────────────────────────────
+
+function CountdownSection() {
+  const { h, m, s } = useCountdown()
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) setVisible(true)
+    }, { threshold: 0.15 })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  const digitStyle = (entered: boolean): React.CSSProperties => ({
+    fontFamily: 'monospace',
+    fontSize: 'clamp(72px, 10vw, 140px)',
+    fontWeight: 900,
+    letterSpacing: '-4px',
+    lineHeight: 1,
+    color: '#f9fafb',
+    display: 'inline-block',
+    minWidth: '2ch',
+    textAlign: 'center',
+    opacity: entered ? 1 : 0,
+    transform: entered ? 'translateY(0)' : 'translateY(40px)',
+    transition: 'opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1)',
+  })
+
+  const sepStyle: React.CSSProperties = {
+    fontSize: 'clamp(56px, 8vw, 110px)',
+    fontWeight: 900,
+    color: '#F59E0B',
+    lineHeight: 1,
+    padding: '0 4px',
+    opacity: visible ? 1 : 0,
+    transition: 'opacity 0.5s 0.2s',
+    userSelect: 'none',
+  }
+
+  return (
+    <section ref={ref} style={{
+      padding: 'clamp(80px,10vw,140px) 32px',
+      borderTop: '1px solid rgba(255,255,255,0.045)',
+      borderBottom: '1px solid rgba(255,255,255,0.045)',
+      background: 'linear-gradient(180deg, #06060f 0%, #0a0510 50%, #06060f 100%)',
+      textAlign: 'center',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Amber glow behind digits */}
+      <div style={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '700px', height: '300px',
+        background: 'radial-gradient(ellipse, rgba(245,158,11,0.07) 0%, transparent 70%)',
+        filter: 'blur(60px)',
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{ position: 'relative' }}>
+        <p style={{
+          fontSize: '11px', fontWeight: 700, letterSpacing: '0.28em',
+          textTransform: 'uppercase', color: '#4b5563',
+          marginBottom: '40px',
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 0.5s',
+        }}>
+          Until your next briefing
+        </p>
+
+        {/* Clock */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '0' }}>
+          <span style={{ ...digitStyle(visible), transitionDelay: '0.05s' }}>{h}</span>
+          <span style={sepStyle}>:</span>
+          <span style={{ ...digitStyle(visible), transitionDelay: '0.15s' }}>{m}</span>
+          <span style={sepStyle}>:</span>
+          <span style={{ ...digitStyle(visible), transitionDelay: '0.25s', color: '#F59E0B' }}>{s}</span>
+        </div>
+
+        {/* Labels */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: '0',
+          marginTop: '16px',
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 0.5s 0.4s',
+        }}>
+          {['hours', 'minutes', 'seconds'].map((label, i) => (
+            <div key={label} style={{
+              textAlign: 'center',
+              width: i < 2 ? 'calc(2ch + 8px + 3ch)' : 'calc(2ch)',
+              fontSize: '11px', fontWeight: 600, letterSpacing: '0.12em',
+              textTransform: 'uppercase', color: '#374151',
+            }}>
+              {label}
+            </div>
+          ))}
+        </div>
+
+        <p style={{
+          fontSize: '15px', color: '#4b5563', marginTop: '44px', lineHeight: 1.6,
+          opacity: visible ? 1 : 0,
+          transition: 'opacity 0.5s 0.5s',
+        }}>
+          Every morning at{' '}
+          <span style={{ color: '#F59E0B', fontWeight: 700 }}>8:00 AM</span>
+          {' '}— in 90 seconds or less.
+        </p>
+      </div>
+    </section>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const [email, setEmail] = useState('')
-  const [state, setState] = useState<'idle'|'loading'|'success'|'error'>('idle')
+  const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [statsActive, setStatsActive] = useState(false)
   const statsRef = useRef<HTMLDivElement>(null)
-  const countdown = useCountdown()
   const { word, out } = useRotating(ROTATING_WORDS)
+  const issues = useRecentIssues()
 
   useEffect(() => {
     const el = statsRef.current
@@ -282,21 +522,18 @@ export default function HomePage() {
 
       {/* ── Animated background ── */}
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
-        {/* Amber orb — top left */}
         <div className="orb-1" style={{
           position: 'absolute', top: '-280px', left: '-180px',
           width: '800px', height: '800px', borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(245,158,11,0.13) 0%, transparent 68%)',
           filter: 'blur(50px)',
         }} />
-        {/* Indigo orb — bottom right */}
         <div className="orb-2" style={{
           position: 'absolute', bottom: '-350px', right: '-250px',
           width: '1000px', height: '1000px', borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(99,102,241,0.09) 0%, transparent 68%)',
           filter: 'blur(70px)',
         }} />
-        {/* Subtle grid */}
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px)',
@@ -315,7 +552,6 @@ export default function HomePage() {
           padding: '13px 40px',
         }}>
           <div style={{ maxWidth: '1140px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {/* Logo */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ position: 'relative', width: '10px', height: '10px', flexShrink: 0 }}>
                 <div className="logo-ping" style={{ position: 'absolute', inset: 0, borderRadius: '50%', background: '#F59E0B' }} />
@@ -323,9 +559,8 @@ export default function HomePage() {
               </div>
               <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '-0.4px' }}>Construx Daily</span>
             </div>
-            {/* Nav links */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-              <Link href="/archive" style={{ color: '#6b7280', fontSize: '14px', textDecoration: 'none', transition: 'color 0.15s' }}>Archive</Link>
+              <Link href="/archive" style={{ color: '#6b7280', fontSize: '14px', textDecoration: 'none' }}>Archive</Link>
               {state !== 'success' && (
                 <a href="#subscribe" style={{
                   background: 'linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)',
@@ -344,7 +579,7 @@ export default function HomePage() {
 
           {/* Left: copy */}
           <div>
-            {/* Countdown badge */}
+            {/* Static badge — no countdown here */}
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: '10px',
               background: 'rgba(245,158,11,0.07)',
@@ -354,8 +589,7 @@ export default function HomePage() {
             }}>
               <span className="live-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block', flexShrink: 0 }} />
               <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 700, letterSpacing: '0.03em' }}>
-                NEXT ISSUE IN{' '}
-                <span style={{ fontFamily: 'monospace', fontSize: '13px', letterSpacing: '0.06em', color: '#fff' }}>{countdown}</span>
+                Free · Every morning at 8am
               </span>
             </div>
 
@@ -374,12 +608,10 @@ export default function HomePage() {
               <span className="text-shimmer">deserves.</span>
             </h1>
 
-            {/* Sub */}
             <p style={{ fontSize: '18px', color: '#9ca3af', lineHeight: 1.6, margin: '0 0 10px' }}>
               Every breakthrough, launch and discovery — distilled to 90 seconds.
             </p>
 
-            {/* Rotating audience */}
             <p style={{ fontSize: '15px', color: '#6b7280', margin: '0 0 40px', minHeight: '24px' }}>
               Read by{' '}
               <span style={{
@@ -457,8 +689,8 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Right: 3D mockup */}
-          <Mockup />
+          {/* Right: live cycling mockup */}
+          <LiveMockup issues={issues} />
         </div>
 
         {/* ── Breaking news ticker ── */}
@@ -469,7 +701,6 @@ export default function HomePage() {
           overflow: 'hidden',
         }}>
           <div style={{ display: 'flex', alignItems: 'stretch' }}>
-            {/* LIVE badge */}
             <div style={{
               flexShrink: 0,
               display: 'flex', alignItems: 'center', gap: '8px',
@@ -481,7 +712,6 @@ export default function HomePage() {
               <span className="live-dot" style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#000', display: 'block' }} />
               LIVE
             </div>
-            {/* Scrolling headlines */}
             <div style={{ overflow: 'hidden', flex: 1 }}>
               <div className="ticker-track" style={{ display: 'inline-flex', whiteSpace: 'nowrap', padding: '13px 0' }}>
                 {[...TICKER, ...TICKER].map((item, i) => (
@@ -507,6 +737,9 @@ export default function HomePage() {
             <Stat value={8} unit="am" label="Daily send time" active={statsActive} />
           </div>
         </div>
+
+        {/* ── BIG Countdown ── */}
+        <CountdownSection />
 
         {/* ── What's inside ── */}
         <section style={{ padding: '80px 48px', maxWidth: '1140px', margin: '0 auto' }}>
@@ -559,7 +792,6 @@ export default function HomePage() {
               background: 'linear-gradient(140deg, #100500 0%, #0d0020 45%, #001408 100%)',
               border: '1px solid rgba(245,158,11,0.12)',
             }}>
-              {/* Mesh overlay */}
               <div style={{
                 position: 'absolute', inset: 0,
                 background: [
@@ -567,7 +799,6 @@ export default function HomePage() {
                   'radial-gradient(ellipse at 75% 50%, rgba(99,102,241,0.07) 0%, transparent 55%)',
                 ].join(', '),
               }} />
-              {/* Grid overlay */}
               <div style={{
                 position: 'absolute', inset: 0,
                 backgroundImage: 'linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px)',
